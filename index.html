@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Memory Leak</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #00ff00;
+            overflow: hidden;
+            cursor: crosshair;
+        }
+        
+        .text-fragment {
+            position: absolute;
+            transition: all 2s ease-out;
+            font-size: 14px;
+            line-height: 1.4;
+            pointer-events: none;
+            white-space: pre-wrap;
+            max-width: 300px;
+        }
+        
+        .fading {
+            opacity: 0;
+            transform: scale(0.8);
+        }
+        
+        .memory-counter {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            font-size: 12px;
+            color: #ff0000;
+            z-index: 1000;
+        }
+        
+        .instruction {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            font-size: 12px;
+            color: #ffff00;
+            z-index: 1000;
+        }
+        
+        .ghost-text {
+            color: #003300;
+            opacity: 0.3;
+        }
+        
+        .critical-text {
+            color: #ff0000;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ff0000;
+        }
+        
+        .final-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 24px;
+            color: #ffffff;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 3s ease-in;
+            z-index: 2000;
+        }
+    </style>
+</head>
+<body>
+    <div class="memory-counter">MEMORY: <span id="memory-count">2048</span> MB</div>
+    <div class="instruction">Move your cursor to read. Each movement costs memory. When memory runs out, the story ends.</div>
+    <div class="final-message" id="final-message">
+        In the end, every story is about<br>
+        what we choose to remember<br>
+        and what we're forced to forget.
+    </div>
+
+    <script>
+        let memoryLeft = 2048;
+        let storyFragments = [
+            "I find the hard drive like a bird bone in mother's closet. Three weeks cold.",
+            "Smaller than her pulse. The whole catastrophe fits in my palm.",
+            "I plug it in. The machine coughs electric. Loading like breath held.",
+            "Folders split open: 'Letters Never Sent', 'Photos - Delete Later', 'If Something Happens'.",
+            "My cursor trembles. Every click, a small violence.",
+            "First video: mother's face, younger, carved from different light.",
+            "'Already forgetting. Words slip like water through fingers.'",
+            "My hand shakes on the mouse. Memory counter bleeds: 1987 MB.",
+            "Another folder: 'Before I Forget - Important'. My ribs tighten.",
+            "Video after video. Her mind dissolving in real time, frame by frame.",
+            "'Your first word was airplane. You pointed at sky for weeks after.'",
+            "Timestamps span years. I watch her drowning in her own skull.",
+            "More files surface: doctor visits, pill schedules, plans for when she disappears.",
+            "Her voice, later, thinner: 'I hid this like a tumor.'",
+            "Protection built from silence. Love carved from concealment.",
+            "I crack open another folder. Medical records. Test results like verdicts.",
+            "Words float, burn: 'Early-onset Alzheimer's - hereditary variant'.",
+            "She knew the ending. Knew I might inherit this particular darkness.",
+            "Memory: 1445 MB. Files cannibalizing themselves as I watch.",
+            "I try to save everything, but the machine is starving.",
+            "Videos fracture mid-sentence. Her face scattered like salt.",
+            "The drive dies by design, taking her archived ghosts.",
+            "I understand now. This is intentional. A test. A gift.",
+            "What survives when everything dissolves?",
+            "I choose: one final file. Her clearest moment, crystallized.",
+            "'I love you enough to give you the choice I never had.'",
+            "CRITICAL ERROR: MEMORY FULL",
+            "Screen goes black. In that silence, I know:",
+            "Every story is choosing what to remember.",
+            "Sometimes forgetting chooses for us."
+        ];
+        
+        let currentFragment = 0;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let activeFragments = [];
+        
+        function updateMemoryCounter() {
+            document.getElementById('memory-count').textContent = Math.max(0, Math.floor(memoryLeft));
+        }
+        
+        function createTextFragment(text, x, y, isGhost = false, isCritical = false) {
+            const fragment = document.createElement('div');
+            fragment.className = 'text-fragment';
+            if (isGhost) fragment.classList.add('ghost-text');
+            if (isCritical) fragment.classList.add('critical-text');
+            
+            fragment.textContent = text;
+            fragment.style.left = x + 'px';
+            fragment.style.top = y + 'px';
+            
+            document.body.appendChild(fragment);
+            activeFragments.push(fragment);
+            
+            // Start fading after 8 seconds, remove after 10
+            setTimeout(() => {
+                fragment.classList.add('fading');
+            }, 8000);
+            
+            setTimeout(() => {
+                if (fragment.parentNode) {
+                    fragment.parentNode.removeChild(fragment);
+                    activeFragments = activeFragments.filter(f => f !== fragment);
+                }
+            }, 10000);
+        }
+        
+        function endStory() {
+            // Clear all fragments
+            activeFragments.forEach(fragment => {
+                if (fragment.parentNode) {
+                    fragment.parentNode.removeChild(fragment);
+                }
+            });
+            
+            // Show final message
+            const finalMessage = document.getElementById('final-message');
+            finalMessage.style.opacity = '1';
+            
+            // Remove mouse listener
+            document.removeEventListener('mousemove', handleMouseMove);
+        }
+        
+        function handleMouseMove(e) {
+            // Initialize starting position if needed
+            if (lastMouseX === 0 && lastMouseY === 0) {
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                return;
+            }
+            
+            if (memoryLeft <= 0) {
+                endStory();
+                return;
+            }
+            
+            const movement = Math.sqrt(
+                Math.pow(e.clientX - lastMouseX, 2) + 
+                Math.pow(e.clientY - lastMouseY, 2)
+            );
+            
+            if (movement > 10) {
+                memoryLeft -= movement * 0.1;
+                
+                if (currentFragment < storyFragments.length) {
+                    const fragment = storyFragments[currentFragment];
+                    const isGhost = currentFragment < 5;
+                    const isCritical = fragment.includes('CRITICAL') || fragment.includes('ERROR');
+                    
+                    createTextFragment(
+                        fragment, 
+                        Math.min(e.clientX + Math.random() * 100 - 50, window.innerWidth - 350), 
+                        Math.min(e.clientY + Math.random() * 100 - 50, window.innerHeight - 100),
+                        isGhost,
+                        isCritical
+                    );
+                    
+                    currentFragment++;
+                }
+                
+                updateMemoryCounter();
+            }
+            
+            lastMouseX = e.clientX;
+            lastMouseY = e.clientY;
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            lastMouseX = window.innerWidth / 2;
+            lastMouseY = window.innerHeight / 2;
+            updateMemoryCounter();
+        });
+        
+        document.addEventListener('mousemove', handleMouseMove);
+    </script>
+</body>
+</html>
